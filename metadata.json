@@ -1,0 +1,8 @@
+{
+  "name": "Copy of ScreenReader AI",
+  "description": "An accessible tool that captures screen content, allows region selection, and reads the text aloud using Gemini AI.",
+  "requestFramePermissions": [
+    "microphone",
+    "display-capture"
+  ]
+}
