@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Monitor, Upload, RefreshCw, Volume2, XCircle, Loader2, StopCircle, Mic } from 'lucide-react';
+import { Monitor, Upload, RefreshCw, Volume2, XCircle, Loader2, StopCircle, Mic, Share2, Play } from 'lucide-react';
 import { AppState } from './types';
 import { generateSpeechFromSelection } from './services/geminiService';
 import { CropOverlay } from './components/CropOverlay';
 import { Button } from './components/Button';
+import { audioBufferToWav } from './utils/audioUtils';
 
 const voices = [
   { id: 'Kore', label: 'Kore (Female - Balanced)' },
@@ -45,6 +46,7 @@ const App: React.FC = () => {
 
   const stopAudio = () => {
     if (sourceNodeRef.current) {
+      sourceNodeRef.current.onended = null; // Prevent triggering state change loop
       sourceNodeRef.current.stop();
       sourceNodeRef.current.disconnect();
       sourceNodeRef.current = null;
@@ -52,12 +54,14 @@ const App: React.FC = () => {
     setIsPlaying(false);
   };
 
+  const handleStopUser = () => {
+    stopAudio();
+    setState(AppState.FINISHED);
+  };
+
   const handleScreenShare = async () => {
     initAudio();
     try {
-      // Use standard MediaStreamConstraints. 
-      // 'cursor' is part of DisplayMediaStreamOptions, but often passed in video constraints in some implementations.
-      // We use 'as any' to bypass strict TS checks for the 'cursor' property if it's missing in the interface.
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { cursor: "always" } as any,
         audio: false
@@ -69,7 +73,6 @@ const App: React.FC = () => {
       video.playsInline = true;
       video.autoplay = true;
 
-      // Wait for video to be ready
       await new Promise<void>((resolve) => {
         video.onloadedmetadata = () => {
           resolve();
@@ -77,11 +80,8 @@ const App: React.FC = () => {
       });
 
       await video.play();
-      
-      // Wait a moment for the stream to stabilize
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Draw to canvas to get base64
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -93,7 +93,6 @@ const App: React.FC = () => {
         setState(AppState.CROPPING);
       }
 
-      // Stop stream immediately after capture
       stream.getTracks().forEach(track => track.stop());
       video.srcObject = null;
     } catch (err: any) {
@@ -128,7 +127,7 @@ const App: React.FC = () => {
 
   const handleProcessing = async (croppedBase64: string) => {
     setState(AppState.PROCESSING);
-    setCapturedImage(null); // Close overlay logic, technically
+    setCapturedImage(null);
     
     try {
       const buffer = await generateSpeechFromSelection(croppedBase64, selectedVoice);
@@ -136,7 +135,6 @@ const App: React.FC = () => {
       playAudio(buffer);
     } catch (err: any) {
       console.error(err);
-      // Show the actual error message if available
       const message = err.message || "متاسفانه در پردازش تصویر مشکلی پیش آمد.";
       setErrorMsg(message);
       setState(AppState.ERROR);
@@ -153,12 +151,37 @@ const App: React.FC = () => {
     source.connect(ctx.destination);
     source.onended = () => {
       setIsPlaying(false);
-      setState(AppState.IDLE);
+      setState(AppState.FINISHED);
     };
     sourceNodeRef.current = source;
     source.start(0);
     setIsPlaying(true);
     setState(AppState.PLAYING);
+  };
+
+  const handleShare = async () => {
+    if (!audioBuffer) return;
+    try {
+      const blob = audioBufferToWav(audioBuffer);
+      const file = new File([blob], 'screen-reader-audio.wav', { type: 'audio/wav' });
+      
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'صوت خوانده شده',
+          text: 'این متن توسط هوش مصنوعی ScreenReader خوانده شده است.',
+        });
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'screen-reader-audio.wav';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
   };
 
   return (
@@ -230,7 +253,6 @@ const App: React.FC = () => {
               >
                 آپلود اسکرین‌شات / عکس
               </Button>
-              {/* Force display:none to ensure no UI artifacts */}
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -268,14 +290,38 @@ const App: React.FC = () => {
               <p className="text-slate-500 text-sm mt-1" dir="ltr">{selectedVoice}</p>
             </div>
             <div className="flex gap-4">
-               <Button onClick={stopAudio} variant="danger" icon={<StopCircle />}>
+               <Button onClick={handleStopUser} variant="danger" icon={<StopCircle />}>
                  توقف
                </Button>
-               {audioBuffer && (
-                 <Button onClick={() => playAudio(audioBuffer)} variant="secondary" icon={<RefreshCw />}>
-                   تکرار
+            </div>
+          </div>
+        )}
+
+        {/* State: FINISHED (Replay/Share) */}
+        {state === AppState.FINISHED && (
+          <div className="flex flex-col items-center gap-8 w-full">
+            <div className="w-32 h-32 rounded-full bg-slate-800 flex items-center justify-center">
+              <Volume2 className="w-12 h-12 text-slate-400" />
+            </div>
+            <div className="text-center">
+              <h3 className="text-2xl font-bold text-white mb-2">پایان پخش</h3>
+              <p className="text-slate-400">می‌توانید فایل صوتی را ذخیره کنید یا دوباره گوش دهید</p>
+            </div>
+            
+            <div className="flex flex-col w-full gap-3 max-w-sm">
+               <div className="flex gap-3 w-full">
+                 {audioBuffer && (
+                   <Button onClick={() => playAudio(audioBuffer)} variant="primary" icon={<Play />} className="flex-1">
+                     پخش مجدد
+                   </Button>
+                 )}
+                 <Button onClick={handleShare} variant="secondary" icon={<Share2 />} className="flex-1">
+                   اشتراک / دانلود
                  </Button>
-               )}
+               </div>
+               <Button onClick={reset} variant="secondary" className="bg-slate-800 border-none hover:bg-slate-700">
+                 انتخاب تصویر جدید
+               </Button>
             </div>
           </div>
         )}

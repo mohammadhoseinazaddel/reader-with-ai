@@ -11,6 +11,7 @@ export enum AppState {
   CROPPING = 'CROPPING', // Image loaded, user selecting area
   PROCESSING = 'PROCESSING', // Sending to Gemini
   PLAYING = 'PLAYING', // Audio playback
+  FINISHED = 'FINISHED', // Playback done, ready to share or replay
   ERROR = 'ERROR'
 }
 

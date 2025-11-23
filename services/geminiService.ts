@@ -26,7 +26,7 @@ export const generateSpeechFromSelection = async (
         {
           parts: [
             { 
-              text: "Extract the text from this image exactly as it appears. If it is in Persian, keep it in Persian. If there is no readable text, describe the visual content of the image in Persian. Return ONLY the plain text content, do not use Markdown or labels." 
+              text: "Extract the text from this image. If the text is in Persian (Farsi), please add necessary vowel markers (Harakat/Erab) and specifically 'Ezafe' to ensure correct pronunciation when read aloud. Return ONLY the plain text content, do not use Markdown or labels." 
             },
             {
               inlineData: {
