@@ -7,8 +7,7 @@ const API_KEY = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 export const generateSpeechFromSelection = async (
-  imageBase64: string,
-  promptText: string = "Read the text clearly from this image."
+  imageBase64: string
 ): Promise<AudioBuffer> => {
   if (!API_KEY) {
     throw new Error("API Key is missing.");
@@ -19,14 +18,14 @@ export const generateSpeechFromSelection = async (
 
   try {
     // Step 1: Extract text from the image using a vision-capable model
-    // The TTS model (gemini-2.5-flash-preview-tts) does not support image input directly.
+    console.log("Step 1: Extracting text...");
     const extractionResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: [
         {
           parts: [
             { 
-              text: "Extract all the text from this image exactly as it appears. If the text is in Persian, keep it in Persian. If there is no text, simply describe what is in the image in Persian. Return ONLY the text or description to be read aloud." 
+              text: "Extract the text from this image exactly as it appears. If it is in Persian, keep it in Persian. If there is no readable text, describe the visual content of the image in Persian. Return ONLY the plain text content, do not use Markdown or labels." 
             },
             {
               inlineData: {
@@ -39,15 +38,17 @@ export const generateSpeechFromSelection = async (
       ]
     });
 
-    const extractedText = extractionResponse.text;
+    let extractedText = extractionResponse.text;
 
-    if (!extractedText) {
-      throw new Error("Could not extract text from the image.");
+    if (!extractedText || !extractedText.trim()) {
+      throw new Error("متنی در تصویر پیدا نشد (No text found).");
     }
 
+    extractedText = extractedText.trim();
     console.log("Extracted Text for TTS:", extractedText);
 
     // Step 2: Generate speech from the extracted text
+    console.log("Step 2: Generating speech...");
     const ttsResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [
@@ -67,9 +68,19 @@ export const generateSpeechFromSelection = async (
       },
     });
 
-    const base64Audio = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    const candidate = ttsResponse.candidates?.[0];
+    const firstPart = candidate?.content?.parts?.[0];
+
+    // Check if model returned text (error/refusal) instead of audio
+    if (firstPart?.text && !firstPart?.inlineData) {
+      console.warn("TTS Model returned text message:", firstPart.text);
+      throw new Error(`مدل صوتی نتوانست متن را بخواند: ${firstPart.text}`);
+    }
+
+    const base64Audio = firstPart?.inlineData?.data;
 
     if (!base64Audio) {
+      console.error("Full TTS Response:", JSON.stringify(ttsResponse, null, 2));
       throw new Error("No audio data returned from Gemini TTS.");
     }
 

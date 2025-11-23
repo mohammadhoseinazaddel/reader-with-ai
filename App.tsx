@@ -125,9 +125,11 @@ const App: React.FC = () => {
       const buffer = await generateSpeechFromSelection(croppedBase64);
       setAudioBuffer(buffer);
       playAudio(buffer);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setErrorMsg("متاسفانه در پردازش تصویر مشکلی پیش آمد. لطفا دوباره تلاش کنید.");
+      // Show the actual error message if available
+      const message = err.message || "متاسفانه در پردازش تصویر مشکلی پیش آمد.";
+      setErrorMsg(message);
       setState(AppState.ERROR);
     }
   };
@@ -151,15 +153,15 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center p-4 md:p-8">
+    <div className="min-h-screen bg-slate-950 flex flex-col text-slate-50 font-sans">
       
       {/* Header */}
-      <header className="w-full max-w-3xl flex justify-between items-center mb-12">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Volume2 className="text-white w-6 h-6" />
+      <header className="w-full max-w-2xl mx-auto flex justify-between items-center p-6 mb-8">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <Volume2 className="text-white w-7 h-7" />
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+          <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400" dir="ltr">
             ScreenReader AI
           </h1>
         </div>
@@ -171,14 +173,14 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content Area */}
-      <main className="w-full max-w-md md:max-w-2xl flex-1 flex flex-col justify-center items-center">
+      <main className="w-full max-w-2xl mx-auto flex-1 flex flex-col justify-center items-center px-6">
         
         {/* State: IDLE */}
         {state === AppState.IDLE && (
           <div className="flex flex-col gap-6 w-full animate-fade-in">
-            <div className="text-center mb-8">
-              <p className="text-slate-400 text-lg mb-2">قسمتی از صفحه را انتخاب کنید تا برایتان بخوانم</p>
-              <p className="text-slate-500 text-sm">هم روی گوشی، هم روی کامپیوتر</p>
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-bold text-white mb-3">متن‌خوان هوشمند</h2>
+              <p className="text-slate-400 text-lg">قسمتی از صفحه را انتخاب کنید تا برایتان بخوانم</p>
             </div>
 
             <Button 
@@ -198,16 +200,17 @@ const App: React.FC = () => {
               >
                 آپلود اسکرین‌شات / عکس
               </Button>
+              {/* Force display:none to ensure no UI artifacts */}
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 accept="image/*" 
-                className="hidden" 
+                style={{ display: 'none' }}
                 onChange={handleFileUpload}
               />
             </div>
             
-            <p className="text-xs text-center text-slate-600 mt-4">
+            <p className="text-xs text-center text-slate-500 mt-2">
               نکته: در موبایل، ابتدا اسکرین‌شات بگیرید و سپس دکمه آپلود را بزنید.
             </p>
           </div>
@@ -250,7 +253,7 @@ const App: React.FC = () => {
         {state === AppState.ERROR && (
           <div className="flex flex-col items-center gap-6 text-center">
              <XCircle className="w-16 h-16 text-red-500" />
-             <p className="text-white text-lg">{errorMsg}</p>
+             <p className="text-white text-lg px-4">{errorMsg}</p>
              <Button onClick={reset}>بازگشت</Button>
           </div>
         )}
@@ -258,7 +261,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="w-full text-center py-6 text-slate-600 text-sm">
+      <footer className="w-full text-center py-8 text-slate-600 text-sm" dir="ltr">
         Powered by Google Gemini 2.5 Flash
       </footer>
 
