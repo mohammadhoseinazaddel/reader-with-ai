@@ -7,7 +7,8 @@ const API_KEY = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 export const generateSpeechFromSelection = async (
-  imageBase64: string
+  imageBase64: string,
+  voiceName: string = 'Kore'
 ): Promise<AudioBuffer> => {
   if (!API_KEY) {
     throw new Error("API Key is missing.");
@@ -48,7 +49,7 @@ export const generateSpeechFromSelection = async (
     console.log("Extracted Text for TTS:", extractedText);
 
     // Step 2: Generate speech from the extracted text
-    console.log("Step 2: Generating speech...");
+    console.log(`Step 2: Generating speech using voice: ${voiceName}...`);
     const ttsResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
       contents: [
@@ -62,7 +63,7 @@ export const generateSpeechFromSelection = async (
         responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Kore' },
+            prebuiltVoiceConfig: { voiceName: voiceName },
           },
         },
       },

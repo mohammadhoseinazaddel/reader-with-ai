@@ -1,9 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Monitor, Upload, RefreshCw, Volume2, XCircle, Loader2, StopCircle } from 'lucide-react';
+import { Monitor, Upload, RefreshCw, Volume2, XCircle, Loader2, StopCircle, Mic } from 'lucide-react';
 import { AppState } from './types';
 import { generateSpeechFromSelection } from './services/geminiService';
 import { CropOverlay } from './components/CropOverlay';
 import { Button } from './components/Button';
+
+const voices = [
+  { id: 'Kore', label: 'Kore (Female - Balanced)' },
+  { id: 'Zephyr', label: 'Zephyr (Female - Soft)' },
+  { id: 'Puck', label: 'Puck (Male - Neutral)' },
+  { id: 'Charon', label: 'Charon (Male - Deep)' },
+  { id: 'Fenrir', label: 'Fenrir (Male - Strong)' },
+];
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(AppState.IDLE);
@@ -11,6 +19,7 @@ const App: React.FC = () => {
   const [audioBuffer, setAudioBuffer] = useState<AudioBuffer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [selectedVoice, setSelectedVoice] = useState<string>('Kore');
   
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
@@ -122,7 +131,7 @@ const App: React.FC = () => {
     setCapturedImage(null); // Close overlay logic, technically
     
     try {
-      const buffer = await generateSpeechFromSelection(croppedBase64);
+      const buffer = await generateSpeechFromSelection(croppedBase64, selectedVoice);
       setAudioBuffer(buffer);
       playAudio(buffer);
     } catch (err: any) {
@@ -183,6 +192,27 @@ const App: React.FC = () => {
               <p className="text-slate-400 text-lg">قسمتی از صفحه را انتخاب کنید تا برایتان بخوانم</p>
             </div>
 
+            {/* Voice Selection */}
+            <div className="w-full bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+              <label className="text-slate-400 text-sm mb-2 flex items-center gap-2">
+                <Mic className="w-4 h-4" />
+                انتخاب صدای گوینده
+              </label>
+              <div className="relative">
+                 <select
+                    value={selectedVoice}
+                    onChange={(e) => setSelectedVoice(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl p-3 pl-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer"
+                    dir="ltr"
+                 >
+                    {voices.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
+                 </select>
+                 <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                   <Volume2 className="w-4 h-4 text-slate-500" />
+                 </div>
+              </div>
+            </div>
+
             <Button 
               onClick={handleScreenShare} 
               icon={<Monitor />} 
@@ -235,6 +265,7 @@ const App: React.FC = () => {
             <div className="text-center">
               <h3 className="text-2xl font-bold text-white mb-2">در حال پخش</h3>
               <p className="text-slate-400">صدا توسط مدل Gemini تولید شده است</p>
+              <p className="text-slate-500 text-sm mt-1" dir="ltr">{selectedVoice}</p>
             </div>
             <div className="flex gap-4">
                <Button onClick={stopAudio} variant="danger" icon={<StopCircle />}>
